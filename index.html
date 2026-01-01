@@ -2,17 +2,40 @@
 <html>
 <head>
   <title>Catch the Stars</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     body {
+      margin: 0;
       background: #0b0f2b;
       color: white;
       font-family: Arial;
       text-align: center;
+      user-select: none;
+    }
+
+    h1 {
+      margin: 10px 0;
+    }
+
+    #info {
+      font-size: 16px;
+      margin-bottom: 5px;
+    }
+
+    button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 5px;
     }
 
     #gameArea {
-      width: 400px;
-      height: 500px;
+      width: 100%;
+      max-width: 420px;
+      height: 520px;
       border: 2px solid white;
       margin: auto;
       position: relative;
@@ -21,96 +44,119 @@
     }
 
     .star {
-      width: 30px;
-      height: 30px;
+      width: 36px;
+      height: 36px;
       background: gold;
       border-radius: 50%;
       position: absolute;
+      box-shadow: 0 0 12px yellow;
       cursor: pointer;
-      box-shadow: 0 0 10px yellow;
-    }
-
-    #info {
-      margin: 10px;
-      font-size: 18px;
     }
   </style>
 </head>
+
 <body>
 
-  <h1>⭐ Catch the Stars ⭐</h1>
+<h1>⭐ Catch the Stars ⭐</h1>
 
-  <div id="info">
-    Score: <span id="score">0</span> |
-    High Score: <span id="highScore">0</span> |
-    Lives: <span id="lives">3</span>
-  </div>
+<div id="info">
+  Score: <span id="score">0</span> |
+  High: <span id="highScore">0</span> |
+  Lives: <span id="lives">3</span> |
+  Level: <span id="level">1</span>
+</div>
 
-  <div id="gameArea"></div>
+<button id="pauseBtn">Pause</button>
 
-  <script>
-    const gameArea = document.getElementById("gameArea");
-    const scoreText = document.getElementById("score");
-    const livesText = document.getElementById("lives");
-    const highScoreText = document.getElementById("highScore");
+<div id="gameArea"></div>
 
-    let score = 0;
-    let lives = 3;
+<script>
+  const gameArea = document.getElementById("gameArea");
+  const scoreText = document.getElementById("score");
+  const livesText = document.getElementById("lives");
+  const highScoreText = document.getElementById("highScore");
+  const levelText = document.getElementById("level");
+  const pauseBtn = document.getElementById("pauseBtn");
 
-    // Load high score
-    let highScore = localStorage.getItem("highScore") || 0;
-    highScoreText.textContent = highScore;
+  let score = 0;
+  let lives = 3;
+  let level = 1;
+  let paused = false;
 
-    function createStar() {
-      const star = document.createElement("div");
-      star.classList.add("star");
+  let highScore = localStorage.getItem("highScore") || 0;
+  highScoreText.textContent = highScore;
 
-      star.style.left = Math.random() * 370 + "px";
-      star.style.top = "0px";
+  pauseBtn.onclick = () => {
+    paused = !paused;
+    pauseBtn.textContent = paused ? "Resume" : "Pause";
+  };
 
-      gameArea.appendChild(star);
+  function vibrate() {
+    if (navigator.vibrate) navigator.vibrate(50);
+  }
 
-      let fallSpeed = Math.random() * 3 + 2;
+  function createStar() {
+    if (paused) return;
 
-      const fall = setInterval(() => {
-        let top = star.offsetTop;
-        star.style.top = top + fallSpeed + "px";
+    const star = document.createElement("div");
+    star.className = "star";
+    star.style.left = Math.random() * (gameArea.clientWidth - 40) + "px";
+    star.style.top = "0px";
 
-        if (top > 470) {
-          clearInterval(fall);
+    let caught = false;
+    gameArea.appendChild(star);
+
+    let speed = 1.8 + level * 0.4;
+
+    const fall = setInterval(() => {
+      if (paused || caught) return;
+
+      let top = star.offsetTop;
+      star.style.top = top + speed + "px";
+
+      if (top >= gameArea.clientHeight - 40) {
+        clearInterval(fall);
+        if (!caught) {
           star.remove();
           lives--;
           livesText.textContent = lives;
 
-          if (lives === 0) {
-            // Check & save high score
-            if (score > highScore) {
-              localStorage.setItem("highScore", score);
-              alert("🎉 NEW HIGH SCORE: " + score);
-            } else {
-              alert("Game Over! Your Score: " + score);
-            }
-            location.reload();
-          }
+          if (lives <= 0) endGame();
         }
-      }, 20);
+      }
+    }, 20);
 
-      star.addEventListener("click", () => {
-        clearInterval(fall);
-        star.remove();
-        score++;
-        scoreText.textContent = score;
+    star.addEventListener("pointerdown", () => {
+      if (caught || paused) return;
 
-        // Live high score update
-        if (score > highScore) {
-          highScore = score;
-          highScoreText.textContent = highScore;
-        }
-      });
-    }
+      caught = true;
+      clearInterval(fall);
+      star.remove();
 
-    setInterval(createStar, 1000);
-  </script>
+      score++;
+      scoreText.textContent = score;
+      vibrate();
+
+      if (score % 10 === 0) {
+        level++;
+        levelText.textContent = level;
+      }
+
+      if (score > highScore) {
+        highScore = score;
+        highScoreText.textContent = highScore;
+        localStorage.setItem("highScore", highScore);
+      }
+    });
+  }
+
+  function endGame() {
+    alert("Game Over!\nScore: " + score + "\nHigh Score: " + highScore);
+    location.reload();
+  }
+
+  setInterval(createStar, 900);
+</script>
 
 </body>
 </html>
